@@ -541,9 +541,9 @@ var import_node_os2 = require("node:os");
 
 // manifest.json
 var manifest_default = {
-  id: "codex-bridge",
-  name: "Codex Bridge",
-  version: "1.0.0",
+  id: "free-solo-codex-bridge",
+  name: "Free Solo Codex Bridge",
+  version: "1.0.1",
   minAppVersion: "1.5.0",
   description: "Local Codex server and shared text/image tasks for Obsidian plugins.",
   author: "Kostya Struga",
@@ -1565,7 +1565,7 @@ var _settings, _service;
 var CodexBridgePlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
-    // ES private fields: not enumerable from `app.plugins.plugins["codex-bridge"]`, so a neighbouring
+    // ES private fields: not enumerable from `app.plugins.plugins["free-solo-codex-bridge"]`, so a neighbouring
     // plugin cannot reach settings or server administration by accident. This is not a security
     // boundary (all plugins share one process); see SECURITY.md.
     __privateAdd(this, _settings, { ...DEFAULT_SETTINGS });

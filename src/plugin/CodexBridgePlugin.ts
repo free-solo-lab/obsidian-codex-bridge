@@ -14,7 +14,7 @@ export function showError(error: unknown): void {
 export default class CodexBridgePlugin extends Plugin {
   /** The narrowed API other plugins receive. */
   api!: CodexBridgeApi;
-  // ES private fields: not enumerable from `app.plugins.plugins["codex-bridge"]`, so a neighbouring
+  // ES private fields: not enumerable from `app.plugins.plugins["free-solo-codex-bridge"]`, so a neighbouring
   // plugin cannot reach settings or server administration by accident. This is not a security
   // boundary (all plugins share one process); see SECURITY.md.
   #settings: BridgeSettings = { ...DEFAULT_SETTINGS };

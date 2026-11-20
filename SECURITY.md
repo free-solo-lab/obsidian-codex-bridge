@@ -13,7 +13,7 @@
 - **Plugins share one process.** Codex Bridge keeps its settings and server administration out of the object other plugins receive, and the public API only exposes tasks, but Obsidian has no isolation between plugins. A malicious plugin can still read or edit this plugin's `data.json`, or call Codex itself. Treat every plugin you install, and any full-access switch you enable, as trusted code. The `caller` field on a task is a label for usage counts, not an identity or permission.
 - **Conversation threads stay on disk.** `runInThread` conversations are stored in your Codex history (`~/.codex`), like any Codex chat. Plain `run` tasks use ephemeral threads.
 
-- The **Codex executable** setting is run as a program. Only point it at a binary you trust, and do not open vaults whose `.obsidian/plugins/codex-bridge/data.json` you did not create.
+- The **Codex executable** setting is run as a program. Only point it at a binary you trust, and do not open vaults whose `.obsidian/plugins/free-solo-codex-bridge/data.json` you did not create.
 - **Full access** (off by default) lets a plugin that asks use web search and the MCP servers and Codex apps you allowed. Page and tool content can try to steer the model; enable it only for plugins you trust.
 - The Codex read-only sandbox is not a strict filesystem-read isolation boundary.
 

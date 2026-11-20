@@ -1,5 +1,5 @@
 /**
- * The contract other plugins receive through `app.plugins.plugins["codex-bridge"].api`.
+ * The contract other plugins receive through `app.plugins.plugins["free-solo-codex-bridge"].api`.
  * Shapes here are public: additions are fine, renames and removals are breaking.
  */
 

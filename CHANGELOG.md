@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- The plugin id is now `free-solo-codex-bridge` and the name **Free Solo Codex Bridge**, because `codex-bridge` is taken in the Obsidian community catalog. Other plugins must read `app.plugins.plugins["free-solo-codex-bridge"].api`. If you installed 1.0.0 by hand, enable the plugin again after updating.
+
 ## 1.0.0
 
 First public release.

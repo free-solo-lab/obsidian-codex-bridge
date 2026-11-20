@@ -1,10 +1,10 @@
-# Codex Bridge for Obsidian
+# Free Solo Codex Bridge for Obsidian
 
 A desktop-only plugin that owns one local `codex app-server` process over stdio and offers a versioned API to other Obsidian plugins. No listening port is opened. It starts on demand, or optionally with Obsidian, and stops when disabled/unloaded.
 
 ## Install and use
 
-1. Copy `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/codex-bridge/` and enable **Codex Bridge** in Community plugins.
+1. Copy `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/free-solo-codex-bridge/` and enable **Free Solo Codex Bridge** in Community plugins.
 2. Open its settings and click **Start** / **Check account and models**. An existing Codex sign-in is reused. If needed, click **Sign in with ChatGPT** and complete the browser flow.
 3. Optionally pick a **Default model** (left empty, the first model your account offers is used; plugins may choose their own per task). Consumers such as the Readwise Reading Tracker or Daily Infographic then find the bridge automatically; nothing else needs configuring in Bridge for text-only tasks.
 
@@ -17,7 +17,7 @@ The executable is detected from common CLI/desktop locations or PATH; you can pr
 ## Shared API, version 1
 
 ```ts
-const bridge = app.plugins.plugins["codex-bridge"]?.api;
+const bridge = app.plugins.plugins["free-solo-codex-bridge"]?.api;
 if (!bridge || bridge.version !== 1) throw new Error("Enable Codex Bridge first");
 const controller = new AbortController();
 const response = await bridge.run({
