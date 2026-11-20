@@ -545,7 +545,7 @@ var manifest_default = {
   name: "Free Solo Codex Bridge",
   version: "1.0.1",
   minAppVersion: "1.5.0",
-  description: "Local Codex server and shared text/image tasks for Obsidian plugins.",
+  description: "Run one local Codex server and share it with other plugins for text and image tasks.",
   author: "Kostya Struga",
   isDesktopOnly: true,
   authorUrl: "https://freesolo.tech"
