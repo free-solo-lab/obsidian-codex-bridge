@@ -1336,7 +1336,6 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     const el = this.containerEl;
     el.empty();
     el.addClass("codex-bridge-settings");
-    el.createEl("h3", { text: t("settings.title") });
     el.createEl("p", { text: t("settings.intro") });
     el.createDiv({ cls: "codex-bridge-status" });
     el.createDiv({ cls: "codex-bridge-hint" });
@@ -1428,7 +1427,7 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     this.settings.mcpAllowlist = toggleNameInList(this.settings.mcpAllowlist, name, allowed);
   }
   renderMcp(el) {
-    el.createEl("h4", { text: t("settings.mcpTitle") });
+    new import_obsidian.Setting(el).setName(t("settings.mcpTitle")).setHeading();
     el.createEl("p", { text: t("settings.mcpIntro") });
     const summary = this.mcp ? this.mcp.length ? "" : t("settings.mcpNone") : this.mcpError || t("settings.notLoaded");
     new import_obsidian.Setting(el).setName(t("settings.mcpServers")).setDesc(summary).addButton(
@@ -1513,7 +1512,7 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     );
   }
   renderApps(el) {
-    el.createEl("h4", { text: t("settings.appsTitle") });
+    new import_obsidian.Setting(el).setName(t("settings.appsTitle")).setHeading();
     el.createEl("p", { text: t("settings.appsIntro") });
     const summary = this.apps ? this.apps.length ? "" : t("settings.appsNone") : this.appsError || t("settings.notLoaded");
     new import_obsidian.Setting(el).setName(t("settings.apps")).setDesc(summary).addButton(

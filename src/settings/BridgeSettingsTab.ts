@@ -126,7 +126,6 @@ export class BridgeSettingsTab extends PluginSettingTab {
     const el = this.containerEl;
     el.empty();
     el.addClass("codex-bridge-settings");
-    el.createEl("h3", { text: t("settings.title") });
     el.createEl("p", { text: t("settings.intro") });
     el.createDiv({ cls: "codex-bridge-status" });
     el.createDiv({ cls: "codex-bridge-hint" });
@@ -249,7 +248,7 @@ export class BridgeSettingsTab extends PluginSettingTab {
   }
 
   private renderMcp(el: HTMLElement): void {
-    el.createEl("h4", { text: t("settings.mcpTitle") });
+    new Setting(el).setName(t("settings.mcpTitle")).setHeading();
     el.createEl("p", { text: t("settings.mcpIntro") });
     const summary = this.mcp
       ? this.mcp.length
@@ -366,7 +365,7 @@ export class BridgeSettingsTab extends PluginSettingTab {
   }
 
   private renderApps(el: HTMLElement): void {
-    el.createEl("h4", { text: t("settings.appsTitle") });
+    new Setting(el).setName(t("settings.appsTitle")).setHeading();
     el.createEl("p", { text: t("settings.appsIntro") });
     const summary = this.apps
       ? this.apps.length
