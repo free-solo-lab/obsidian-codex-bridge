@@ -1,5 +1,6 @@
 import { BridgeError, type CodexTask } from "../api";
 import { t } from "../i18n/messages";
+import { startTimer, stopTimer, type TimerHandle } from "../utils/timers";
 import { allowedToolProgress, isPassiveItem, type StartedItem, type ToolAllowance } from "./taskPolicy";
 import { BRIDGE_STOPPED, type RpcMessage, type RpcTransport } from "./transport";
 
@@ -49,7 +50,7 @@ export function runTurn(transport: RpcTransport, options: TurnOptions): Promise<
     let receivedCharacters = 0;
     let lastProgressAt = 0;
     let lastEmittedText = "";
-    let textTimer: ReturnType<typeof setTimeout> | undefined;
+    let textTimer: TimerHandle | undefined;
     /** Commentary items are progress for the user, never part of the streamed answer. */
     const commentaryItems = new Set<string>();
     const answers = new Map<string, string>();
@@ -57,7 +58,7 @@ export function runTurn(transport: RpcTransport, options: TurnOptions): Promise<
 
     const emitText = (value?: string) => {
       if (textTimer) {
-        clearTimeout(textTimer);
+        stopTimer(textTimer);
         textTimer = undefined;
       }
       const current = value ?? (answerId ? (answers.get(answerId) ?? "") : "");
@@ -70,8 +71,8 @@ export function runTurn(transport: RpcTransport, options: TurnOptions): Promise<
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
-      if (textTimer) clearTimeout(textTimer);
+      stopTimer(timeoutTimer);
+      if (textTimer) stopTimer(textTimer);
       unsubscribe();
       task.signal?.removeEventListener("abort", interrupt);
       if (error) reject(error);
@@ -133,7 +134,7 @@ export function runTurn(transport: RpcTransport, options: TurnOptions): Promise<
         answerId = itemId;
         answers.set(itemId, (answers.get(itemId) ?? "") + delta);
         if (!textTimer) {
-          textTimer = setTimeout(() => {
+          textTimer = startTimer(() => {
             textTimer = undefined;
             emitText();
           }, TEXT_THROTTLE);
@@ -185,7 +186,7 @@ export function runTurn(transport: RpcTransport, options: TurnOptions): Promise<
       }
     });
 
-    const timeoutTimer = setTimeout(() => {
+    const timeoutTimer = startTimer(() => {
       finish(new BridgeError("timeout", t("error.timedOut")));
       stopServer();
     }, TURN_TIMEOUT);

@@ -1,10 +1,10 @@
 import esbuild from "esbuild";
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 
 await esbuild.build({
   entryPoints: ["main.ts"],
   bundle: true,
-  external: ["obsidian", "electron", ...builtins],
+  external: ["obsidian", "electron", ...builtinModules],
   format: "cjs",
   platform: "node",
   target: "es2020",

@@ -21,7 +21,8 @@ export default class CodexBridgePlugin extends Plugin {
   #service!: BridgeService;
 
   async onload(): Promise<void> {
-    this.#settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    const saved = (await this.loadData()) as Partial<BridgeSettings> | null;
+    this.#settings = { ...DEFAULT_SETTINGS, ...saved };
     this.#service = new BridgeService(
       () => this.#settings.executable,
       () => this.#settings.model,

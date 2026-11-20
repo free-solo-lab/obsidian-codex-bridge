@@ -3,7 +3,9 @@ import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { t } from "../i18n/messages";
 import manifest from "../../manifest.json";
+import { errorMessage } from "../utils/errors";
 import { Listeners } from "../utils/listeners";
+import { startTimer, stopTimer, unrefTimer, type TimerHandle } from "../utils/timers";
 import { BridgeError } from "../api";
 import { parseCodexVersion } from "./version";
 import { locateCodex } from "./locateCodex";
@@ -37,7 +39,7 @@ const KILL_GRACE_PERIOD = 2_000;
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(error: Error): void;
-  timer: ReturnType<typeof setTimeout>;
+  timer: TimerHandle;
 }
 
 /** Owns one `codex app-server` child process and speaks line-delimited JSON-RPC with it over stdio. */
@@ -115,7 +117,7 @@ export class RpcClient implements RpcTransport {
   private receive(line: string): void {
     let message: RpcMessage;
     try {
-      message = JSON.parse(line);
+      message = JSON.parse(line) as RpcMessage;
     } catch {
       this.fail(new Error(t("error.invalidMessage")));
       return;
@@ -132,7 +134,7 @@ export class RpcClient implements RpcTransport {
       const pending = this.pending.get(message.id);
       if (!pending) return;
       this.pending.delete(message.id);
-      clearTimeout(pending.timer);
+      stopTimer(pending.timer);
       if (message.error) pending.reject(new Error(message.error.message ?? t("error.requestFailed")));
       else pending.resolve(message.result);
       return;
@@ -148,7 +150,7 @@ export class RpcClient implements RpcTransport {
   request<T = unknown>(method: string, params: unknown = {}, timeout = DEFAULT_REQUEST_TIMEOUT): Promise<T> {
     const id = ++this.nextId;
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = startTimer(() => {
         this.pending.delete(id);
         reject(new Error(t("error.requestTimedOut", { method })));
       }, timeout);
@@ -156,9 +158,9 @@ export class RpcClient implements RpcTransport {
       try {
         this.send({ id, method, params });
       } catch (error) {
-        clearTimeout(timer);
+        stopTimer(timer);
         this.pending.delete(id);
-        reject(error);
+        reject(error instanceof Error ? error : new Error(errorMessage(error)));
       }
     });
   }
@@ -174,7 +176,7 @@ export class RpcClient implements RpcTransport {
     const child = this.child;
     this.child = null;
     for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
+      stopTimer(pending.timer);
       pending.reject(error);
     }
     this.pending.clear();
@@ -182,9 +184,9 @@ export class RpcClient implements RpcTransport {
     if (!child) return;
     child.stdin.end();
     child.kill("SIGTERM");
-    const timer = setTimeout(() => {
+    const timer = startTimer(() => {
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     }, KILL_GRACE_PERIOD);
-    timer.unref();
+    unrefTimer(timer);
   }
 }

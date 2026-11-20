@@ -1,9 +1,7 @@
 "use strict";
-var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __typeError = (msg) => {
   throw TypeError(msg);
@@ -20,14 +18,6 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
@@ -42,7 +32,7 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 
 // src/plugin/CodexBridgePlugin.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 
 // src/codex/BridgeService.ts
 var import_promises = require("node:fs/promises");
@@ -543,13 +533,25 @@ var import_node_os2 = require("node:os");
 var manifest_default = {
   id: "free-solo-codex-bridge",
   name: "Free Solo Codex Bridge",
-  version: "1.0.1",
-  minAppVersion: "1.5.0",
+  version: "1.0.2",
+  minAppVersion: "1.8.0",
   description: "Run one local Codex server and share it with other plugins for text and image tasks.",
   author: "Kostya Struga",
   isDesktopOnly: true,
   authorUrl: "https://freesolo.tech"
 };
+
+// src/utils/timers.ts
+var host = () => typeof window === "undefined" ? globalThis : window;
+function startTimer(callback, delay) {
+  return host().setTimeout(callback, delay);
+}
+function stopTimer(handle) {
+  if (handle !== void 0) host().clearTimeout(handle);
+}
+function unrefTimer(handle) {
+  handle.unref?.();
+}
 
 // src/codex/locateCodex.ts
 var import_node_fs = require("node:fs");
@@ -668,7 +670,7 @@ var RpcClient = class {
       const pending = this.pending.get(message.id);
       if (!pending) return;
       this.pending.delete(message.id);
-      clearTimeout(pending.timer);
+      stopTimer(pending.timer);
       if (message.error) pending.reject(new Error(message.error.message ?? t("error.requestFailed")));
       else pending.resolve(message.result);
       return;
@@ -683,7 +685,7 @@ var RpcClient = class {
   request(method, params = {}, timeout = DEFAULT_REQUEST_TIMEOUT) {
     const id = ++this.nextId;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = startTimer(() => {
         this.pending.delete(id);
         reject(new Error(t("error.requestTimedOut", { method })));
       }, timeout);
@@ -691,9 +693,9 @@ var RpcClient = class {
       try {
         this.send({ id, method, params });
       } catch (error) {
-        clearTimeout(timer);
+        stopTimer(timer);
         this.pending.delete(id);
-        reject(error);
+        reject(error instanceof Error ? error : new Error(errorMessage(error)));
       }
     });
   }
@@ -707,7 +709,7 @@ var RpcClient = class {
     const child = this.child;
     this.child = null;
     for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
+      stopTimer(pending.timer);
       pending.reject(error);
     }
     this.pending.clear();
@@ -715,10 +717,10 @@ var RpcClient = class {
     if (!child) return;
     child.stdin.end();
     child.kill("SIGTERM");
-    const timer = setTimeout(() => {
+    const timer = startTimer(() => {
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     }, KILL_GRACE_PERIOD);
-    timer.unref();
+    unrefTimer(timer);
   }
 };
 
@@ -745,7 +747,7 @@ function runTurn(transport, options) {
     let answerId;
     const emitText = (value) => {
       if (textTimer) {
-        clearTimeout(textTimer);
+        stopTimer(textTimer);
         textTimer = void 0;
       }
       const current = value ?? (answerId ? answers.get(answerId) ?? "" : "");
@@ -757,8 +759,8 @@ function runTurn(transport, options) {
     const finish = (error) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
-      if (textTimer) clearTimeout(textTimer);
+      stopTimer(timeoutTimer);
+      if (textTimer) stopTimer(textTimer);
       unsubscribe();
       task.signal?.removeEventListener("abort", interrupt);
       if (error) reject(error);
@@ -813,7 +815,7 @@ function runTurn(transport, options) {
         answerId = itemId;
         answers.set(itemId, (answers.get(itemId) ?? "") + delta);
         if (!textTimer) {
-          textTimer = setTimeout(() => {
+          textTimer = startTimer(() => {
             textTimer = void 0;
             emitText();
           }, TEXT_THROTTLE);
@@ -858,7 +860,7 @@ function runTurn(transport, options) {
           break;
       }
     });
-    const timeoutTimer = setTimeout(() => {
+    const timeoutTimer = startTimer(() => {
       finish(new BridgeError("timeout", t("error.timedOut")));
       stopServer();
     }, TURN_TIMEOUT);
@@ -1203,20 +1205,11 @@ function publicApi(service) {
 }
 
 // src/i18n/index.ts
-var obsidian = __toESM(require("obsidian"));
-function obsidianLanguage() {
-  const api = obsidian;
-  if (typeof api.getLanguage === "function") return api.getLanguage();
-  try {
-    return window.localStorage.getItem("language");
-  } catch {
-    return null;
-  }
-}
-setLocaleProvider(() => normalizeLocale(obsidianLanguage()));
+var import_obsidian = require("obsidian");
+setLocaleProvider(() => normalizeLocale((0, import_obsidian.getLanguage)()));
 
 // src/settings/BridgeSettingsTab.ts
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/diagnostics.ts
 function buildDiagnostics(info) {
@@ -1247,11 +1240,11 @@ var DEFAULT_EXECUTABLE = DEFAULT_SETTINGS.executable;
 // src/settings/BridgeSettingsTab.ts
 var SIGN_IN_HOSTS = ["auth.openai.com", "chatgpt.com", "auth0.openai.com"];
 var READWISE_MCP = { name: "readwise", url: "https://mcp2.readwise.io/mcp" };
-var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
-  constructor(plugin, host) {
+var BridgeSettingsTab = class extends import_obsidian2.PluginSettingTab {
+  constructor(plugin, host2) {
     super(plugin.app, plugin);
     this.plugin = plugin;
-    this.host = host;
+    this.host = host2;
     this.models = [];
     this.mcpError = "";
     this.appsError = "";
@@ -1330,7 +1323,7 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
       throw new Error(failure);
     }
     window.open(url.href);
-    new import_obsidian.Notice(next);
+    new import_obsidian2.Notice(next);
   }
   render() {
     const el = this.containerEl;
@@ -1348,12 +1341,12 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     this.renderDiagnostics(el);
   }
   renderDiagnostics(el) {
-    new import_obsidian.Setting(el).setName(t("settings.diagnosticsName")).setDesc(t("settings.diagnosticsDesc")).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.diagnosticsName")).setDesc(t("settings.diagnosticsDesc")).addButton(
       (button) => button.setButtonText(t("settings.copyDiagnostics")).onClick(() => {
         const status = this.host.api.getStatus();
         const text = buildDiagnostics({
           pluginVersion: this.plugin.manifest.version,
-          obsidianVersion: import_obsidian.apiVersion,
+          obsidianVersion: import_obsidian2.apiVersion,
           platform: process.platform,
           codexVersion: status.codexVersion,
           configuredExecutable: this.settings.executable,
@@ -1363,12 +1356,12 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
           fullAccessAllowed: this.settings.allowFullAccess,
           usage: this.host.service.usage()
         });
-        void navigator.clipboard.writeText(text).then(() => new import_obsidian.Notice(t("notice.diagnosticsCopied")));
+        void navigator.clipboard.writeText(text).then(() => new import_obsidian2.Notice(t("notice.diagnosticsCopied")));
       })
     );
   }
   renderServer(el) {
-    new import_obsidian.Setting(el).setName(t("settings.server")).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.server")).addButton(
       (button) => button.setButtonText(t("settings.start")).onClick(() => {
         void this.refresh();
       })
@@ -1380,19 +1373,19 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
         void this.refresh();
       })
     );
-    new import_obsidian.Setting(el).setName(t("settings.executableName")).setDesc(t("settings.executableDesc")).addText(
+    new import_obsidian2.Setting(el).setName(t("settings.executableName")).setDesc(t("settings.executableDesc")).addText(
       (text) => text.setValue(this.settings.executable).onChange(async (value) => {
         this.settings.executable = value.trim() || DEFAULT_EXECUTABLE;
         await this.save();
       })
     );
-    new import_obsidian.Setting(el).setName(t("settings.autoStart")).addToggle(
+    new import_obsidian2.Setting(el).setName(t("settings.autoStart")).addToggle(
       (toggle) => toggle.setValue(this.settings.autoStart).onChange(async (value) => {
         this.settings.autoStart = value;
         await this.save();
       })
     );
-    new import_obsidian.Setting(el).setName(t("settings.account")).setDesc(this.account || t("settings.accountNotChecked")).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.account")).setDesc(this.account || t("settings.accountNotChecked")).addButton(
       (button) => button.setButtonText(t("settings.signInWithChatGpt")).onClick(() => {
         void this.host.api.login().then(
           (result) => this.openSignIn(
@@ -1410,13 +1403,13 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     );
   }
   renderAccess(el) {
-    new import_obsidian.Setting(el).setName(t("settings.fullAccessName")).setDesc(t("settings.fullAccessDesc")).addToggle(
+    new import_obsidian2.Setting(el).setName(t("settings.fullAccessName")).setDesc(t("settings.fullAccessDesc")).addToggle(
       (toggle) => toggle.setValue(this.settings.allowFullAccess).onChange(async (value) => {
         this.settings.allowFullAccess = value;
         await this.save();
       })
     );
-    new import_obsidian.Setting(el).setName(t("settings.mcpAllowlistName")).setDesc(t("settings.mcpAllowlistDesc")).addText(
+    new import_obsidian2.Setting(el).setName(t("settings.mcpAllowlistName")).setDesc(t("settings.mcpAllowlistDesc")).addText(
       (text) => text.setValue(this.settings.mcpAllowlist).setPlaceholder(READWISE_MCP.name).onChange(async (value) => {
         this.settings.mcpAllowlist = value.trim();
         await this.save();
@@ -1427,10 +1420,10 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     this.settings.mcpAllowlist = toggleNameInList(this.settings.mcpAllowlist, name, allowed);
   }
   renderMcp(el) {
-    new import_obsidian.Setting(el).setName(t("settings.mcpTitle")).setHeading();
+    new import_obsidian2.Setting(el).setName(t("settings.mcpTitle")).setHeading();
     el.createEl("p", { text: t("settings.mcpIntro") });
     const summary = this.mcp ? this.mcp.length ? "" : t("settings.mcpNone") : this.mcpError || t("settings.notLoaded");
-    new import_obsidian.Setting(el).setName(t("settings.mcpServers")).setDesc(summary).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.mcpServers")).setDesc(summary).addButton(
       (button) => button.setButtonText(t("settings.refresh")).onClick(() => {
         void this.loadMcp().then(() => this.render());
       })
@@ -1442,7 +1435,7 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     const signedIn = server.auth === "oAuth" || server.auth === "bearerToken";
     const noSignIn = server.auth === "unsupported";
     const authText = signedIn ? t("settings.signedIn") : noSignIn ? t("settings.noSignInNeeded") : t("settings.notSignedIn");
-    const setting = new import_obsidian.Setting(el).setName(server.name).setDesc(`${server.origin ?? t("settings.localCommand")} \xB7 ${authText}`);
+    const setting = new import_obsidian2.Setting(el).setName(server.name).setDesc(`${server.origin ?? t("settings.localCommand")} \xB7 ${authText}`);
     setting.addToggle(
       (toggle) => toggle.setTooltip(t("settings.usableWithFullAccess")).setValue(server.allowed).onChange(async (value) => {
         this.setMcpAllowed(server.name, value);
@@ -1487,12 +1480,12 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     await this.save();
     await this.loadMcp();
     this.render();
-    new import_obsidian.Notice(t("notice.serverAdded", { name }));
+    new import_obsidian2.Notice(t("notice.serverAdded", { name }));
   }
   renderAddMcp(el) {
     let name = "";
     let url = "";
-    new import_obsidian.Setting(el).setName(t("settings.addServerName")).setDesc(t("settings.addServerDesc")).addText(
+    new import_obsidian2.Setting(el).setName(t("settings.addServerName")).setDesc(t("settings.addServerDesc")).addText(
       (text) => text.setPlaceholder(t("settings.serverNamePlaceholder")).onChange((value) => {
         name = value.trim();
       })
@@ -1505,23 +1498,23 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
         void this.addMcp(name, url).catch(showError);
       })
     );
-    new import_obsidian.Setting(el).setName(t("settings.readwiseName")).setDesc(t("settings.readwiseDesc")).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.readwiseName")).setDesc(t("settings.readwiseDesc")).addButton(
       (button) => button.setButtonText(t("settings.addReadwise")).onClick(() => {
         void this.addMcp(READWISE_MCP.name, READWISE_MCP.url).catch(showError);
       })
     );
   }
   renderApps(el) {
-    new import_obsidian.Setting(el).setName(t("settings.appsTitle")).setHeading();
+    new import_obsidian2.Setting(el).setName(t("settings.appsTitle")).setHeading();
     el.createEl("p", { text: t("settings.appsIntro") });
     const summary = this.apps ? this.apps.length ? "" : t("settings.appsNone") : this.appsError || t("settings.notLoaded");
-    new import_obsidian.Setting(el).setName(t("settings.apps")).setDesc(summary).addButton(
+    new import_obsidian2.Setting(el).setName(t("settings.apps")).setDesc(summary).addButton(
       (button) => button.setButtonText(t("settings.refresh")).onClick(() => {
         void this.loadApps().then(() => this.render());
       })
     );
     for (const app of this.apps ?? []) {
-      new import_obsidian.Setting(el).setName(app.name).addToggle(
+      new import_obsidian2.Setting(el).setName(app.name).addToggle(
         (toggle) => toggle.setTooltip(t("settings.usableWithFullAccess")).setValue(app.allowed).onChange(async (value) => {
           const rest = this.settings.allowedApps.filter((item) => item.id !== app.id);
           this.settings.allowedApps = value ? [...rest, { id: app.id, name: app.name }] : rest;
@@ -1533,14 +1526,14 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
     }
   }
   renderModels(el) {
-    new import_obsidian.Setting(el).setName(t("settings.defaultModelName")).setDesc(t("settings.defaultModelDesc")).addText(
+    new import_obsidian2.Setting(el).setName(t("settings.defaultModelName")).setDesc(t("settings.defaultModelDesc")).addText(
       (text) => text.setValue(this.settings.model).setPlaceholder(t("settings.modelAutoPlaceholder")).onChange(async (value) => {
         this.settings.model = value.trim();
         await this.save();
       })
     );
     if (!this.models.length) return;
-    new import_obsidian.Setting(el).setName(t("settings.availableModels")).addDropdown((dropdown) => {
+    new import_obsidian2.Setting(el).setName(t("settings.availableModels")).addDropdown((dropdown) => {
       dropdown.addOption("", t("settings.selectModel"));
       for (const model of this.models) {
         const images = model.inputModalities.includes("image") ? t("settings.imagesSuffix") : "";
@@ -1558,10 +1551,10 @@ var BridgeSettingsTab = class extends import_obsidian.PluginSettingTab {
 
 // src/plugin/CodexBridgePlugin.ts
 function showError(error) {
-  new import_obsidian2.Notice(errorMessage(error));
+  new import_obsidian3.Notice(errorMessage(error));
 }
 var _settings, _service;
-var CodexBridgePlugin = class extends import_obsidian2.Plugin {
+var CodexBridgePlugin = class extends import_obsidian3.Plugin {
   constructor() {
     super(...arguments);
     // ES private fields: not enumerable from `app.plugins.plugins["free-solo-codex-bridge"]`, so a neighbouring
@@ -1571,7 +1564,8 @@ var CodexBridgePlugin = class extends import_obsidian2.Plugin {
     __privateAdd(this, _service);
   }
   async onload() {
-    __privateSet(this, _settings, { ...DEFAULT_SETTINGS, ...await this.loadData() });
+    const saved = await this.loadData();
+    __privateSet(this, _settings, { ...DEFAULT_SETTINGS, ...saved });
     __privateSet(this, _service, new BridgeService(
       () => __privateGet(this, _settings).executable,
       () => __privateGet(this, _settings).model,
