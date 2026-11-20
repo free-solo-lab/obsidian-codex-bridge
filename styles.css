@@ -1,0 +1,13 @@
+.codex-bridge-settings .codex-bridge-hint:not(:empty) {
+  margin-top: 8px;
+  color: var(--text-warning);
+  font-size: var(--font-ui-small);
+}
+
+.codex-bridge-settings .codex-bridge-status {
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
